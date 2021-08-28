@@ -13,7 +13,6 @@ import net.minestom.server.utils.NamespaceID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.plaf.nimbus.State;
 import java.io.IOException;
 
 @Getter @RequiredArgsConstructor(access = AccessLevel.PRIVATE)

@@ -1,7 +1,6 @@
 package cc.minetale.magma.type;
 
 import cc.minetale.magma.palette.MaterialPalette;
-import cc.minetale.magma.palette.StatePalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
 import lombok.AllArgsConstructor;
@@ -10,8 +9,6 @@ import net.minestom.server.instance.block.Block;
 import net.minestom.server.tag.Tag;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 @Getter @AllArgsConstructor()
 public class MagmaBlock {
