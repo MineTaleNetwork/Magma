@@ -1,16 +1,19 @@
 package cc.minetale.magma.type;
 
 import cc.minetale.magma.MagmaWriter;
+import cc.minetale.magma.palette.StatePalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.utils.NamespaceID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.plaf.nimbus.State;
 import java.io.IOException;
 
 @Getter @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
@@ -24,11 +27,25 @@ public class MagmaMaterial {
     private final NamespaceID id;
     private final short propertiesAmount; //Amount of properties to compare to the expected amount for a block in case it's different between versions
 
+    @Setter private StatePalette statePalette;
+
     public MagmaMaterial(int index, boolean isCustom, Block block) {
         this.index = index;
         this.isCustom = isCustom;
         this.id = block.namespace();
         this.propertiesAmount = (short) block.properties().size();
+
+        var statePalette = new StatePalette();
+        statePalette.addState(block.stateId());
+
+        this.statePalette = statePalette;
+    }
+
+    public MagmaMaterial(int index, boolean isCustom, NamespaceID id) {
+        this.index = index;
+        this.isCustom = isCustom;
+        this.id = id;
+        this.propertiesAmount = (short) Block.fromNamespaceId(id).properties().size();
     }
 
     /**
@@ -38,28 +55,22 @@ public class MagmaMaterial {
         return Block.fromNamespaceId(this.id);
     }
 
-    public static MagmaMaterial read(int index, MagmaInputStream in) throws IOException {
-        boolean isCustom = in.readBoolean();
+    public static MagmaMaterial read(int index, MagmaInputStream mis) throws IOException {
+        boolean isCustom = mis.readBoolean();
 
         NamespaceID id;
         if(!isCustom) {
-            id = NamespaceID.from(in.readStringShort());
+            id = NamespaceID.from(mis.readStringShort());
         } else {
             //TODO Figure out custom blocks
             id = Block.DIRT.namespace();
-            in.skipBytes(in.readShort()); //Skip the ID until implemented
+            mis.skipBytes(mis.readShort()); //Skip the ID until implemented
         }
 
-        short propertiesAmount = in.readShort();
+        MagmaMaterial material = new MagmaMaterial(index, isCustom, id);
 
-        MagmaMaterial material = new MagmaMaterial(index, isCustom, id, propertiesAmount);
-
-        var expectedPropsAmount = material.getMaterial().properties().size();
-        if(expectedPropsAmount != material.propertiesAmount) {
-            LOGGER.warn("Amount of properties in the material doesn't match the one expected by the game. Maybe changed between versions?\n" +
-                            "Before Expected: {}. Now Expects: {}.",
-                    propertiesAmount, expectedPropsAmount);
-        }
+        StatePalette statePalette = StatePalette.read(mis, material);
+        material.setStatePalette(statePalette);
 
         return material;
     }
@@ -67,6 +78,7 @@ public class MagmaMaterial {
     public void write(MagmaOutputStream mos) throws IOException {
         mos.writeBoolean(this.isCustom);
         mos.writeStringShort(this.id.asString());
-        mos.writeShort(this.propertiesAmount);
+
+        this.statePalette.write(mos);
     }
 }

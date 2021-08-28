@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 
 @Getter
 public class MagmaLoader implements IChunkLoader {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(MagmaLoader.class);
 
     private static final BlockManager BLOCK_MANAGER = MinecraftServer.getBlockManager();
@@ -135,7 +136,6 @@ public class MagmaLoader implements IChunkLoader {
                 var coords = MagmaUtils.getCoordsFromSectionIndex(blockIndex);
 
                 var block = magmaBlock.getBlock();
-//                palette.setBlockAt(coords[0], coords[1], coords[2], block.stateId());
                 int x = (chunkX * Chunk.CHUNK_SIZE_X) + coords[0];
                 int y = (sectionIndex * Chunk.CHUNK_SECTION_SIZE) + coords[1];
                 int z = (chunkZ * Chunk.CHUNK_SIZE_Z) + coords[2];
@@ -166,4 +166,5 @@ public class MagmaLoader implements IChunkLoader {
     public boolean supportsParallelSaving() {
         return true;
     }
+
 }

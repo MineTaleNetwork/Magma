@@ -38,7 +38,11 @@ public class MaterialPalette {
         synchronized(this.palette) {
             for(MagmaMaterial material : this.palette.values()) {
                 NamespaceID existingID = material.getId();
-                if(existingID.equals(id)) { return material; }
+                if(existingID.equals(id)) {
+                    var statePalette = material.getStatePalette();
+                    statePalette.addStateIfNotFound(block.stateId());
+                    return material;
+                }
             }
 
             var newIndex = this.palette.size();
@@ -48,42 +52,6 @@ public class MaterialPalette {
 
             return newMaterial;
         }
-    }
-
-    /**
-     * Tries to find {@linkplain MagmaMaterial} in the given Magma palette and adds a new one if it couldn't find one.
-     * @param id {@linkplain NamespaceID} of the block to search for
-     * @return An existing or newly created {@linkplain MagmaMaterial}
-     */
-    public MagmaMaterial findInPaletteOrAdd(NamespaceID id) {
-        synchronized(this.palette) {
-            for(MagmaMaterial material : this.palette.values()) {
-                NamespaceID existingID = material.getId();
-                if(existingID.equals(id)) { return material; }
-            }
-
-            Block block = Block.fromNamespaceId(id);
-            if(block == null) { return null; }
-
-            var newIndex = this.palette.size();
-            MagmaMaterial newMaterial = new MagmaMaterial(newIndex, false, block); //TODO Implement custom blocks
-
-            this.palette.put(newIndex, newMaterial);
-
-            return newMaterial;
-        }
-    }
-
-    /**
-     * Tries to find {@linkplain MagmaMaterial} in the given Magma palette and adds a new one if it couldn't find one.
-     * @param stateId StateId of the block to search for
-     * @return An existing or newly created {@linkplain MagmaMaterial}
-     */
-    public MagmaMaterial findInPaletteOrAdd(short stateId) {
-        var block = Block.fromStateId(stateId);
-        if(block == null) { return null; }
-
-        return findInPaletteOrAdd(block);
     }
 
     public MagmaMaterial getMaterialAt(int index) {

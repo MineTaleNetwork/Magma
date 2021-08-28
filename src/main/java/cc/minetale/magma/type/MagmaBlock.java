@@ -1,6 +1,7 @@
 package cc.minetale.magma.type;
 
 import cc.minetale.magma.palette.MaterialPalette;
+import cc.minetale.magma.palette.StatePalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
 import lombok.AllArgsConstructor;
@@ -18,7 +19,7 @@ public class MagmaBlock {
     private final int sectionIndex; //Position index relative to the section
 
     private final MagmaMaterial material; //Material gotten from the Magma palette
-    private final Map<String, String> properties; //Properties of the block (basically same as stateId, but represented as readable text)
+    private final short stateId;
 
     private final String snbt;
 
@@ -27,16 +28,15 @@ public class MagmaBlock {
 
         this.material = material;
 
-        this.properties = block.properties();
-        this.snbt = block.getTag(Tag.SNBT); //TODO See if we should use Tags or actual NBT utilities for SNBT
+        this.stateId = block.stateId();
+        this.snbt = block.getTag(Tag.SNBT);
     }
 
     /**
      * @return Block with properties/state and NBT if any. See also {@linkplain MagmaMaterial#getMaterial()}.
      */
     public Block getBlock() {
-        Block block = this.material.getMaterial()
-                .withProperties(this.properties);
+        Block block = Block.fromStateId(this.stateId);
 
         if(this.snbt != null && !this.snbt.isEmpty())
             block.withTag(Tag.SNBT, this.snbt);
@@ -50,38 +50,23 @@ public class MagmaBlock {
         var materialIndex = mis.readInt();
         MagmaMaterial material = materialPalette.getMaterialAt(materialIndex);
 
-        Block block = material.getMaterial();
-        Map<String, String> properties = new HashMap<>(block.properties());
+        var stateIndex = mis.readShort();
 
-        int expected = material.getPropertiesAmount();
-        for(int i = 0; i < expected; i++) {
-            String key = mis.readStringByte();
-            if(!properties.containsKey(key)) { //Skip the property. The name probably changed, but we don't know what to.
-                mis.skipBytes(mis.readShort() * Character.BYTES);
-                continue;
-            }
+        var statePalette = material.getStatePalette();
+        short stateId = statePalette.getStateAt(stateIndex);
 
-            String value = mis.readStringShort();
-            properties.put(key, value);
-        }
-
-        boolean hasSnbt = mis.readBoolean();
+        var hasSnbt = mis.readBoolean();
         String snbt = hasSnbt ? mis.readStringInt() : null;
 
-        return new MagmaBlock(sectionIndex, material, properties, snbt);
+        return new MagmaBlock(sectionIndex, material, stateId, snbt);
     }
 
     public void write(MagmaOutputStream mos) throws IOException {
         mos.writeInt(this.sectionIndex);
         mos.writeInt(this.material.getIndex());
 
-        for(Map.Entry<String, String> ent : this.properties.entrySet()) {
-            String key = ent.getKey();
-            mos.writeStringByte(key);
-
-            String value = ent.getValue();
-            mos.writeStringShort(value);
-        }
+        var statePalette = this.material.getStatePalette();
+        mos.writeShort(statePalette.findInPaletteOrAdd(this.stateId));
 
         if(this.snbt != null && !this.snbt.isEmpty()) {
             mos.writeBoolean(true);
