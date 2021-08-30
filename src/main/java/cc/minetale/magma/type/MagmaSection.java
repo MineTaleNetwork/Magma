@@ -1,6 +1,5 @@
 package cc.minetale.magma.type;
 
-import cc.minetale.magma.MagmaWriter;
 import cc.minetale.magma.palette.MaterialPalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;

@@ -1,15 +1,11 @@
 package cc.minetale.magma;
 
-import cc.minetale.magma.palette.BiomePalette;
-import cc.minetale.magma.palette.MaterialPalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.type.MagmaRegion;
 import net.minestom.server.MinecraftServer;
 
-import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.BitSet;
 import java.util.concurrent.CompletableFuture;
 
 public class MagmaReader {

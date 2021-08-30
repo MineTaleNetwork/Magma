@@ -3,14 +3,12 @@ package cc.minetale.magma.palette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
 import cc.minetale.magma.type.MagmaBiome;
-import com.github.luben.zstd.Zstd;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minestom.server.utils.NamespaceID;
 import net.minestom.server.world.biomes.Biome;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 public class BiomePalette {
