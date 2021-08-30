@@ -2,16 +2,17 @@ package cc.minetale.magma.stream;
 
 import com.github.luben.zstd.Zstd;
 
-import java.io.DataInputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.BitSet;
 
 public class MagmaInputStream extends DataInputStream {
 
     public MagmaInputStream(InputStream in) {
         super(in);
+    }
+
+    public MagmaInputStream(byte[] bytes) {
+        super(new ByteArrayInputStream(bytes));
     }
 
     public int[] readIntArray(final int count) throws IOException {
@@ -59,7 +60,6 @@ public class MagmaInputStream extends DataInputStream {
 
     public BitSet readBitSet(final int byteCount) throws IOException {
         byte[] raw = readByteArray(byteCount);
-
         return BitSet.valueOf(raw);
     }
 
@@ -103,12 +103,18 @@ public class MagmaInputStream extends DataInputStream {
         return data;
     }
 
+    public byte[] readTest() throws IOException {
+        var length = readInt();
+        byte[] data = readByteArray(length);
+        return data;
+    }
+
     /**
      * Skips a block of zstd-compressed data.
      *
      * @return the number of bytes skipped
      * @throws IOException if the bytes cannot be skipped
-     * @see #readCompressed() for requirements
+     * @see #readTest() for requirements
      */
     public long skipCompressed() throws IOException {
         var compressedLength = readInt();

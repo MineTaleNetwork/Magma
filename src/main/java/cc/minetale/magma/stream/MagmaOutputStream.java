@@ -1,5 +1,6 @@
 package cc.minetale.magma.stream;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -9,6 +10,14 @@ public class MagmaOutputStream extends DataOutputStream {
 
     public MagmaOutputStream(OutputStream out) {
         super(out);
+    }
+
+    public MagmaOutputStream(int size) {
+        super(new ByteArrayOutputStream(size));
+    }
+
+    public MagmaOutputStream() {
+        super(new ByteArrayOutputStream());
     }
 
     public void writeStringByte(String string) throws IOException {
@@ -47,6 +56,28 @@ public class MagmaOutputStream extends DataOutputStream {
     public void writeByteArray(byte[] bytes) throws IOException {
         writeInt(bytes.length);
         write(bytes);
+    }
+
+    public void writeCompressed(int dataSize, byte[] compressed) throws IOException {
+        writeInt(compressed.length);
+        writeInt(dataSize);
+
+        write(compressed);
+    }
+
+    public void writeMagma(MagmaOutputStream mos) throws IOException {
+        var data = mos.toByteArray();
+
+        writeInt(data.length);
+        write(data);
+    }
+
+    public byte[] toByteArray() {
+        if(this.out instanceof ByteArrayOutputStream) {
+            return ((ByteArrayOutputStream) this.out).toByteArray();
+        }
+
+        return new byte[0];
     }
 
 }

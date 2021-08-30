@@ -21,7 +21,7 @@ import java.io.IOException;
 @Getter @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MagmaSection {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MagmaWriter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MagmaSection.class);
 
     private byte[] skyLight;
     private byte[] blockLight;

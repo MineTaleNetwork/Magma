@@ -10,8 +10,9 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.Getter;
 import net.minestom.server.utils.chunk.ChunkUtils;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.BitSet;
@@ -19,14 +20,9 @@ import java.util.BitSet;
 @Getter
 public class MagmaRegion {
 
-    /**
-     * X-axis length, in chunks
-     */
-    private final int xSize;
+    private static final Logger LOGGER = LoggerFactory.getLogger(MagmaRegion.class);
 
-    /**
-     * Z-axis length, in chunks
-     */
+    private final int xSize;
     private final int zSize;
 
     private final BitSet populatedChunks;
@@ -35,27 +31,6 @@ public class MagmaRegion {
     private BiomePalette biomePalette;
 
     private Int2ObjectMap<MagmaChunk> chunks;
-
-    public MagmaRegion(int xSize, int zSize,
-                       @NotNull BitSet populatedChunks,
-                       int materialPaletteSize, byte[] materialPaletteData,
-                       short biomePaletteSize,  byte[] biomePaletteData,
-                       byte[] chunksData) {
-
-        this.xSize = xSize;
-        this.zSize = zSize;
-
-        this.populatedChunks = populatedChunks;
-
-        this.materialPalette = new MaterialPalette(materialPaletteSize);
-        readMaterialPalette(materialPaletteData, materialPaletteSize);
-
-        this.biomePalette = new BiomePalette(biomePaletteSize);
-        readBiomePalette(biomePaletteData, biomePaletteSize);
-
-        this.chunks = new Int2ObjectOpenHashMap<>(xSize * zSize);
-        readMagmaChunks(chunksData);
-    }
 
     public MagmaRegion(int xSize, int zSize,
                        @NotNull BitSet populatedChunks,
@@ -84,63 +59,70 @@ public class MagmaRegion {
         return this.chunks.get(ChunkUtils.getChunkIndex(x, z));
     }
 
-    private void readMaterialPalette(byte[] paletteData, int size) {
-        MagmaInputStream stream = new MagmaInputStream(
-                new ByteArrayInputStream(paletteData));
+    public static MagmaRegion read(MagmaInputStream mis) throws IOException {
+        LOGGER.debug("Reading region...");
 
-        this.materialPalette = MaterialPalette.read(stream, size);
-    }
+        int xSize = mis.readShort();
+        int zSize = mis.readShort();
 
-    private void readBiomePalette(byte[] paletteData, short size) {
-        MagmaInputStream stream = new MagmaInputStream(
-                new ByteArrayInputStream(paletteData));
+        int bitmaskLength = mis.readInt();
+        BitSet populatedChunks = mis.readBitSet(bitmaskLength);
 
-        this.biomePalette = BiomePalette.read(stream, size);
-    }
+        byte[] data = mis.readCompressed();
+        MagmaInputStream dataMis = new MagmaInputStream(data);
 
-    private void readMagmaChunks(byte[] chunksData) {
-        MagmaInputStream mis = new MagmaInputStream(
-                new ByteArrayInputStream(chunksData));
+        //Palettes
+        MaterialPalette materialPalette = MaterialPalette.read(dataMis);
+        BiomePalette biomePalette = BiomePalette.read(dataMis);
+
+        //Chunks
+        byte[] chunksData = dataMis.readByteArray();
+
+        Int2ObjectMap<MagmaChunk> chunks = new Int2ObjectOpenHashMap<>(xSize * zSize);
+        MagmaInputStream chunksMis = new MagmaInputStream(chunksData);
 
         int current = 0;
-        for(var index = 0; index < this.populatedChunks.length(); index++) {
-            if(!this.populatedChunks.get(index)) {
+        for(var index = 0; index < populatedChunks.length(); index++) {
+            if(!populatedChunks.get(index)) {
                 // Non-populated chunk
                 continue;
             }
 
             try {
-                MagmaChunk chunk = MagmaChunk.read(this.materialPalette, this.biomePalette, mis);
-                this.chunks.put(current, chunk);
+                MagmaChunk chunk = MagmaChunk.read(materialPalette, biomePalette, chunksMis);
+                chunks.put(current, chunk);
             } catch(IOException e) {
                 e.printStackTrace();
             }
 
             current++;
         }
+
+        LOGGER.debug("Finished reading region!");
+
+        return new MagmaRegion(
+                xSize, zSize,
+                populatedChunks,
+                materialPalette, biomePalette,
+                chunks);
     }
 
     public void write(MagmaOutputStream mos) throws IOException {
-        System.out.println("Saving Region Information...");
+        LOGGER.debug("Writing region...");
+
         mos.writeShort(this.xSize);
         mos.writeShort(this.zSize);
 
-        var bitmask = this.populatedChunks.toByteArray();
-        mos.writeInt(bitmask.length);
-        mos.write(bitmask);
+        mos.writeBitSetInt(this.populatedChunks);
 
-        //Material palette
-        System.out.println("Saving Material Palette...");
-        this.materialPalette.write(mos);
+        MagmaOutputStream dataMos = new MagmaOutputStream();
 
-        //Biome palette
-        System.out.println("Saving Biome Palette...");
-        this.biomePalette.write(mos);
+        //Materials
+        this.materialPalette.write(dataMos);
+        this.biomePalette.write(dataMos);
 
         //Chunks
-        System.out.println("Saving Chunks...");
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
-        MagmaOutputStream chunksMos = new MagmaOutputStream(baos);
+        MagmaOutputStream chunksMos = new MagmaOutputStream(4096);
         for(int i = 0; i < this.populatedChunks.length(); i++) {
             if(!this.populatedChunks.get(i)) { continue; }
             MagmaChunk chunk = this.chunks.get(i);
@@ -148,15 +130,16 @@ public class MagmaRegion {
         }
         chunksMos.close();
 
-        byte[] chunksData = baos.toByteArray();
-        byte[] compressedChunksData = Zstd.compress(chunksData);
+        dataMos.writeMagma(chunksMos);
 
-        mos.writeInt(compressedChunksData.length);
-        mos.writeInt(chunksData.length);
+        //Compression
+        dataMos.close();
 
-        mos.write(compressedChunksData);
+        byte[] data = dataMos.toByteArray();
+        byte[] compressedData = Zstd.compress(data);
 
-        System.out.println("Finished!");
+        mos.writeCompressed(data.length, compressedData);
+        LOGGER.debug("Finished writing region!");
     }
 
 }

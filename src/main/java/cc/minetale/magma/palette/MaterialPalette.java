@@ -70,7 +70,9 @@ public class MaterialPalette {
         return this.palette;
     }
 
-    public static MaterialPalette read(MagmaInputStream mis, int size) {
+    public static MaterialPalette read(MagmaInputStream mis) throws IOException {
+        int size = mis.readInt();
+
         MaterialPalette palette = new MaterialPalette(size);
         for(var i = 0; i < size; i++) {
             try {
@@ -80,27 +82,17 @@ public class MaterialPalette {
                 e.printStackTrace();
             }
         }
+
         return palette;
     }
 
     public void write(MagmaOutputStream mos) throws IOException {
         mos.writeInt(getSize());
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
-        MagmaOutputStream paletteMos = new MagmaOutputStream(baos);
         for(int i = 0; i < getSize(); i++) {
             MagmaMaterial material = getMaterialAt(i);
-            material.write(paletteMos);
+            material.write(mos);
         }
-        paletteMos.close();
-
-        byte[] paletteData = baos.toByteArray();
-        byte[] compressedPaletteData = Zstd.compress(paletteData);
-
-        mos.writeInt(compressedPaletteData.length);
-        mos.writeInt(paletteData.length);
-
-        mos.write(compressedPaletteData);
     }
 
 }

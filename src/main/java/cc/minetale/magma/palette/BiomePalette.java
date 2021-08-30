@@ -86,7 +86,9 @@ public class BiomePalette {
         return this.palette;
     }
 
-    public static BiomePalette read(MagmaInputStream mis, short size) {
+    public static BiomePalette read(MagmaInputStream mis) throws IOException {
+        int size = mis.readShort();
+
         BiomePalette palette = new BiomePalette(size);
         for(short i = 0; i < size; i++) {
             try {
@@ -96,27 +98,17 @@ public class BiomePalette {
                 e.printStackTrace();
             }
         }
+
         return palette;
     }
 
     public void write(MagmaOutputStream mos) throws IOException {
         mos.writeShort(getSize());
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
-        MagmaOutputStream paletteMos = new MagmaOutputStream(baos);
         for(short i = 0; i < getSize(); i++) {
             MagmaBiome biome = getBiomeAt(i);
-            biome.write(paletteMos);
+            biome.write(mos);
         }
-        paletteMos.close();
-
-        byte[] paletteData = baos.toByteArray();
-        byte[] compressedPaletteData = Zstd.compress(paletteData);
-
-        mos.writeInt(compressedPaletteData.length);
-        mos.writeInt(paletteData.length);
-
-        mos.write(compressedPaletteData);
     }
 
 }
