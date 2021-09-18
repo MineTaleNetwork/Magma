@@ -24,10 +24,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class MagmaUtils {
 
-    public static final Path DIRECTORY = Path.of(".", "regions");
+    public static final Path DEFAULT_DIRECTORY = Path.of(".", "regions");
     public static final String FORMAT_NAME = "magma";
 
     public static final int BATCH_SIZE = 16;
+
+    public static Path getDefaultLocation(String fileName) {
+        return MagmaUtils.DEFAULT_DIRECTORY.resolve(fileName + "." + MagmaUtils.FORMAT_NAME);
+    }
 
     public static CompletableFuture<MagmaRegion> load(Instance instance, Pos from, Pos to) {
         Pos fromChunk = from.sub(from.x() % 16, from.y(), from.z() % 16).div(16);

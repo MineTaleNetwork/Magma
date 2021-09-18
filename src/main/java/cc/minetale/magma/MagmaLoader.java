@@ -22,6 +22,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -35,25 +36,25 @@ public class MagmaLoader implements IChunkLoader {
     private static final ExceptionManager EXCEPTION_MANAGER = MinecraftServer.getExceptionManager();
     private static final Biome BIOME = Biome.PLAINS;
 
-    private final String name;
+    private final Path path;
     private final MagmaRegion region;
 
-    private MagmaLoader(@NotNull String name, MagmaRegion region) {
-        this.name = name;
+    private MagmaLoader(@NotNull Path path, MagmaRegion region) {
+        this.path = path;
         this.region = region;
     }
 
     /**
      * Returns the loader after the region has fully loaded.
-     * @param name Name of the region to load
+     * @param path Path to the region to load
      * @return Ready to use {@linkplain MagmaLoader}
      */
-    public static CompletableFuture<MagmaLoader> create(@NotNull String name) {
+    public static CompletableFuture<MagmaLoader> create(@NotNull Path path) {
         return new CompletableFuture<MagmaLoader>()
                 .completeAsync(() -> {
                     try {
-                        var region = MagmaReader.read(name).get();
-                        return new MagmaLoader(name, region);
+                        var region = MagmaReader.read(path).get();
+                        return new MagmaLoader(path, region);
                     } catch(InterruptedException | ExecutionException e) {
                         Thread.currentThread().interrupt();
                         MinecraftServer.getExceptionManager().handleException(e);
@@ -148,7 +149,7 @@ public class MagmaLoader implements IChunkLoader {
 
     @Override
     public @NotNull CompletableFuture<Void> saveInstance(@NotNull Instance instance) {
-        MagmaWriter.write(region, name);
+        MagmaWriter.write(region, path);
         return AsyncUtils.VOID_FUTURE;
     }
 

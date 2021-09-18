@@ -6,12 +6,12 @@ import net.minestom.server.MinecraftServer;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 public class MagmaReader {
 
-    public static CompletableFuture<MagmaRegion> read(String name) {
-        var path = MagmaUtils.DIRECTORY.resolve(name + "." + MagmaUtils.FORMAT_NAME);
+    public static CompletableFuture<MagmaRegion> read(Path path) {
         var file = path.toFile();
 
         if(!file.exists())

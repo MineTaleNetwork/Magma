@@ -6,12 +6,12 @@ import cc.minetale.magma.type.MagmaRegion;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class MagmaWriter {
 
-    public static boolean write(MagmaRegion region, String name) {
+    public static boolean write(MagmaRegion region, Path path) {
         try {
-            var path = MagmaUtils.DIRECTORY.resolve(name + "." + MagmaUtils.FORMAT_NAME);
             var file = path.toFile();
 
             Files.deleteIfExists(path);
