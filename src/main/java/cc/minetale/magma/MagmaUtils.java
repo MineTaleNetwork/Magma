@@ -27,6 +27,7 @@ public class MagmaUtils {
     public static final Path DEFAULT_DIRECTORY = Path.of(".", "regions");
     public static final String FORMAT_NAME = "magma";
 
+    //Batch size in chunks
     public static final int BATCH_SIZE = 16;
 
     public static Path getDefaultLocation(String fileName) {
@@ -83,7 +84,7 @@ public class MagmaUtils {
                         populatedChunks.set(chunkIndex);
                         loadedChunks.put(chunkIndex, MagmaChunk.fromChunk(materialPalette, biomePalette, chunk));
 
-                        if(totalFinished.incrementAndGet() >= totalChunks)
+                        if(totalFinished.incrementAndGet() >= totalBatches)
                             future.complete(new MagmaRegion(xSize, zSize, populatedChunks, materialPalette, biomePalette, loadedChunks));
 
                         if(unload)

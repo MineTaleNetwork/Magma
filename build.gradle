@@ -1,0 +1,63 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+    id 'maven-publish'
+    id 'idea'
+    id 'java'
+}
+
+group = 'cc.minetale'
+version = 'LATEST'
+description = 'Magma'
+java.sourceCompatibility = JavaVersion.VERSION_1_8
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url = uri('https://jitpack.io')
+    }
+
+    maven {
+        url = uri('https://repo.spongepowered.org/repository/maven-public/')
+    }
+
+    maven {
+        url = uri('https://repo.maven.apache.org/maven2/')
+    }
+}
+
+dependencies {
+    compileOnly         group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
+    annotationProcessor group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
+
+    implementation group: 'com.github.luben',    name: 'zstd-jni', version: '1.5.0-4'
+    compileOnly    group: 'com.github.Minestom', name: 'Minestom', version: '4680dbd64e'
+    compileOnly    group: 'org.projectlombok',   name: 'lombok',   version: '1.18.20'
+}
+
+compileJava.options.encoding = 'UTF-8'
+sourceCompatibility = 17
+targetCompatibility = 17
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+shadowJar {
+    classifier = null
+}
+
+publishing {
+    publications {
+        shadow(MavenPublication) { publication ->
+            project.shadow.component(publication)
+        }
+    }
+}
+
+tasks.withType(Jar) {
+    destinationDirectory = file("../../Build")
+}
+
+task buildJar(dependsOn: ['publishToMavenLocal'])
