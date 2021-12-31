@@ -2,8 +2,6 @@ package cc.minetale.magma;
 
 import cc.minetale.magma.type.MagmaRegion;
 import it.unimi.dsi.fastutil.bytes.Byte2ObjectMaps;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
-import it.unimi.dsi.fastutil.shorts.Short2ObjectMaps;
 import lombok.Getter;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.exception.ExceptionManager;
@@ -63,7 +61,7 @@ public class MagmaLoader implements IChunkLoader {
                 });
     }
 
-    //TODO Improve
+    //TODO Improve?
     @Override
     public void loadInstance(@NotNull Instance instance) {
         try {
@@ -81,8 +79,8 @@ public class MagmaLoader implements IChunkLoader {
                     }
                 }
             }).delay(8, TimeUnit.SECOND).schedule();
-        } catch(Throwable t) {
-            t.printStackTrace();
+        } catch(Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -93,7 +91,7 @@ public class MagmaLoader implements IChunkLoader {
             return CompletableFuture.completedFuture(null);
         }
 
-        if((chunkX < 0 || chunkX >= this.region.getXSize()) || (chunkZ < 0 || chunkZ >= this.region.getZSize()))
+        if((chunkX < 0 || chunkX > this.region.getXSize()) || (chunkZ < 0 || chunkZ > this.region.getZSize()))
             return CompletableFuture.completedFuture(null);
 
         var chunkIndex = MagmaUtils.getMagmaChunkIndex(chunkX, chunkZ, this.region.getXSize());
@@ -108,39 +106,45 @@ public class MagmaLoader implements IChunkLoader {
             return CompletableFuture.completedFuture(null);
         }
 
-        Biome[] biomes = new Biome[1024];
-        for(var ent : Short2ObjectMaps.fastIterable(magmaChunk.getBiomes())) {
-            var index = ent.getShortKey();
-            var magmaBiome = ent.getValue();
+        final var minY = instance.getDimensionType().getMinY();
+        final var sectionSize = Chunk.CHUNK_SECTION_SIZE;
+        final var minSection = minY / sectionSize;
 
-            biomes[index] = magmaBiome.getBiome();
-        }
-
-        Chunk chunk = new DynamicChunk(instance, biomes, chunkX, chunkZ);
+        var chunk = new DynamicChunk(instance, chunkX, chunkZ);
 
         for (var sectionEntry : Byte2ObjectMaps.fastIterable(magmaChunk.getSections())) {
             var magmaSection = sectionEntry.getValue();
             if(magmaSection == null) { continue; }
 
-            var sectionIndex = sectionEntry.getByteKey(); //Section index within a chunk
+            var sectionIndex = sectionEntry.getByteKey() + minSection; //Section index within a chunk
 
             var section = chunk.getSection(sectionIndex);
             section.setSkyLight(magmaSection.getSkyLight());
             section.setBlockLight(magmaSection.getBlockLight());
 
-            //TODO Set bitsPerEntry and bitsIncrement, but seems to be always the same... for now
+            for(var magmaBlock : magmaSection.getBlocks().values()) {
+                var blockIndex = magmaBlock.getSectionIndex(); //Block index within a section
 
-            for(var blockEntry : Int2ObjectMaps.fastIterable(magmaSection.getBlocks())) {
-                var blockIndex = blockEntry.getIntKey(); //Block index within a section
-                var magmaBlock = blockEntry.getValue();
-
-                var coords = MagmaUtils.getCoordsFromSectionIndex(blockIndex);
+                var coords = MagmaUtils.getCoordsFromSectionIndex(16, blockIndex);
 
                 var block = magmaBlock.getBlock();
-                int x = (chunkX * Chunk.CHUNK_SIZE_X) + coords[0];
+                int x = (chunkX * Chunk.CHUNK_SIZE_X)             + coords[0];
                 int y = (sectionIndex * Chunk.CHUNK_SECTION_SIZE) + coords[1];
-                int z = (chunkZ * Chunk.CHUNK_SIZE_Z) + coords[2];
+                int z = (chunkZ * Chunk.CHUNK_SIZE_Z)             + coords[2];
                 chunk.setBlock(x, y, z, block);
+            }
+
+            for(var ent : Byte2ObjectMaps.fastIterable(magmaSection.getBiomes())) {
+                var biomeIndex = ent.getByteKey(); //Biome index within a section
+                var magmaBiome = ent.getValue();
+
+                int[] coords = MagmaUtils.getCoordsFromSectionIndex(4, biomeIndex);
+
+                var biome = magmaBiome.getBiome();
+                int x = coords[0] * 16;
+                int y = coords[1] * 16;
+                int z = coords[2] * 16;
+                chunk.setBiome(x, y, z, biome);
             }
         }
 

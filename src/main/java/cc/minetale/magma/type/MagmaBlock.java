@@ -7,20 +7,21 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.tag.Tag;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 
 @Getter @AllArgsConstructor()
 public class MagmaBlock {
 
-    private final int sectionIndex; //Position index relative to the section
+    private final short sectionIndex; //Position index relative to the section
 
     private final MagmaMaterial material; //Material gotten from the Magma palette
     private final short stateId;
 
-    private final String snbt;
+    private final @Nullable String snbt;
 
-    public MagmaBlock(int sectionIndex, MagmaMaterial material, Block block) {
+    public MagmaBlock(short sectionIndex, MagmaMaterial material, Block block) {
         this.sectionIndex = sectionIndex;
 
         this.material = material;
@@ -42,7 +43,7 @@ public class MagmaBlock {
     }
 
     public static MagmaBlock read(MaterialPalette materialPalette, MagmaInputStream mis) throws IOException {
-        int sectionIndex = mis.readInt();
+        short sectionIndex = mis.readShort();
 
         var materialIndex = mis.readInt();
         MagmaMaterial material = materialPalette.getMaterialAt(materialIndex);
@@ -59,7 +60,7 @@ public class MagmaBlock {
     }
 
     public void write(MagmaOutputStream mos) throws IOException {
-        mos.writeInt(this.sectionIndex);
+        mos.writeShort(this.sectionIndex);
         mos.writeInt(this.material.getIndex());
 
         var statePalette = this.material.getStatePalette();

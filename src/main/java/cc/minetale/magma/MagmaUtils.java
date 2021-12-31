@@ -4,25 +4,29 @@ import cc.minetale.magma.palette.BiomePalette;
 import cc.minetale.magma.palette.MaterialPalette;
 import cc.minetale.magma.type.MagmaChunk;
 import cc.minetale.magma.type.MagmaRegion;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Instance;
-import net.minestom.server.instance.Section;
-import net.minestom.server.timer.TaskBuilder;
+import net.minestom.server.timer.Task;
 import net.minestom.server.utils.chunk.ChunkUtils;
 
 import java.nio.file.Path;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class MagmaUtils {
+public final class MagmaUtils {
+
+    private MagmaUtils() {}
 
     public static final Path DEFAULT_DIRECTORY = Path.of(".", "regions");
     public static final String FORMAT_NAME = "magma";
@@ -35,6 +39,14 @@ public class MagmaUtils {
     }
 
     public static CompletableFuture<MagmaRegion> load(Instance instance, Pos from, Pos to) {
+        final var minY = instance.getDimensionType().getMinY();
+        final var maxY = instance.getDimensionType().getHeight();
+
+        final var sectionSize = Chunk.CHUNK_SECTION_SIZE;
+
+        final var minSection = minY / sectionSize;
+        final var maxSection = (minY + maxY) / sectionSize;
+
         Pos fromChunk = from.sub(from.x() % 16, from.y(), from.z() % 16).div(16);
         Pos toChunk = to.sub(to.x() % 16, to.y(), to.z() % 16).div(16);
 
@@ -52,15 +64,15 @@ public class MagmaUtils {
         MaterialPalette materialPalette = new MaterialPalette();
         BiomePalette biomePalette = new BiomePalette();
 
-        Int2ObjectMap<MagmaChunk> loadedChunks = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
+        Long2ObjectMap<MagmaChunk> loadedChunks = Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
         AtomicInteger totalFinished = new AtomicInteger(0);
 
-        List<TaskBuilder> tasks = Collections.synchronizedList(new ArrayList<>(totalChunks / BATCH_SIZE));
+        List<Task.Builder> tasks = Collections.synchronizedList(new ArrayList<>(totalChunks / BATCH_SIZE));
 
         final var totalBatches = (int) Math.ceil((double) totalChunks / BATCH_SIZE);
         for(int i = 0; i < totalBatches; i++) { //Batch
             final var batchIndex = i;
-            TaskBuilder task = MinecraftServer.getSchedulerManager().buildTask(() -> {
+            Task.Builder task = MinecraftServer.getSchedulerManager().buildTask(() -> {
                 final var chunksInBatch = Math.min(BATCH_SIZE, totalChunks - (batchIndex * BATCH_SIZE));
                 AtomicInteger finishedInBatch = new AtomicInteger(0);
 
@@ -75,9 +87,14 @@ public class MagmaUtils {
 
                         if(chunk == null || !chunk.isLoaded()) { return; }
 
-                        Collection<Section> sections = chunk.getSections().values();
-                        var isChunkEmpty = sections.stream()
-                                .allMatch(section -> section.getPalette().getBlockCount() == 0);
+                        boolean isChunkEmpty = true;
+                        for(int y = minSection; y < maxSection; y++) {
+                            var section = chunk.getSection(y);
+                            if(section.blockPalette().size() >= 0) {
+                                isChunkEmpty = false;
+                                break;
+                            }
+                        }
 
                         if(isChunkEmpty) { return; }
 
@@ -121,13 +138,16 @@ public class MagmaUtils {
         return new Vec(x, 0, z);
     }
 
-    //Reversed Palette#getSectionIndex
-    public static int[] getCoordsFromSectionIndex(int index) {
+    //Reversed PaletteImpl#getSectionIndex
+    public static int[] getCoordsFromSectionIndex(int dimension, int index) {
         int[] coords = new int[3];
-        coords[1] = index >> 8;       //Y
-        coords[2] = index >> 4 & 0xF; //Z
-        coords[0] = index      & 0xF; //X
+        coords[1] = index >> (dimension / 2);       //Y
+        coords[2] = index >> (dimension / 4) & 0xF; //Z
+        coords[0] = index                    & 0xF; //X
         return coords;
     }
 
+    public static int getSectionIndex(int dimension, int x, int y, int z) {
+        return y << (dimension / 2) | z << (dimension / 4) | x;
+    }
 }

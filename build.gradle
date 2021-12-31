@@ -8,7 +8,6 @@ plugins {
 group = 'cc.minetale'
 version = 'LATEST'
 description = 'Magma'
-java.sourceCompatibility = JavaVersion.VERSION_1_8
 
 repositories {
     mavenLocal()
@@ -31,8 +30,18 @@ dependencies {
     annotationProcessor group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
 
     implementation group: 'com.github.luben',    name: 'zstd-jni', version: '1.5.0-4'
-    compileOnly    group: 'com.github.Minestom', name: 'Minestom', version: '4680dbd64e'
-    compileOnly    group: 'org.projectlombok',   name: 'lombok',   version: '1.18.20'
+    compileOnly    group: 'com.github.Minestom', name: 'Minestom', version: '1.18-SNAPSHOT'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+    testImplementation "org.mockito:mockito-core:3.+"
+}
+
+configurations {
+    testImplementation.extendsFrom compileOnly
+}
+
+test {
+    useJUnitPlatform()
 }
 
 compileJava.options.encoding = 'UTF-8'

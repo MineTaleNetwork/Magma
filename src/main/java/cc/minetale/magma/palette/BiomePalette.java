@@ -24,7 +24,7 @@ public class BiomePalette {
     }
 
     public @Nullable MagmaBiome findInPalette(Biome biome) {
-        return findInPalette(biome.getName());
+        return findInPalette(biome.name());
     }
 
     public @Nullable MagmaBiome findInPalette(NamespaceID name) {
@@ -44,7 +44,7 @@ public class BiomePalette {
      * @return An existing or newly created {@linkplain MagmaBiome}
      */
     public MagmaBiome findInPaletteOrAdd(Biome biome) {
-        return findInPaletteOrAdd(biome.getName());
+        return findInPaletteOrAdd(biome.name());
     }
 
     /**

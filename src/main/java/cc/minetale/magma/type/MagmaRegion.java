@@ -1,22 +1,22 @@
 package cc.minetale.magma.type;
 
+import cc.minetale.magma.MagmaUtils;
 import cc.minetale.magma.palette.BiomePalette;
 import cc.minetale.magma.palette.MaterialPalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
 import com.github.luben.zstd.Zstd;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import net.minestom.server.utils.chunk.ChunkUtils;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.BitSet;
 
-@Getter
+@Getter @AllArgsConstructor
 public class MagmaRegion {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MagmaRegion.class);
@@ -29,23 +29,7 @@ public class MagmaRegion {
     private MaterialPalette materialPalette;
     private BiomePalette biomePalette;
 
-    private Int2ObjectMap<MagmaChunk> chunks;
-
-    public MagmaRegion(int xSize, int zSize,
-                       @NotNull BitSet populatedChunks,
-                       MaterialPalette materialPalette, BiomePalette biomePalette,
-                       Int2ObjectMap<MagmaChunk> chunks) {
-
-        this.xSize = xSize;
-        this.zSize = zSize;
-
-        this.populatedChunks = populatedChunks;
-
-        this.materialPalette = materialPalette;
-        this.biomePalette = biomePalette;
-
-        this.chunks = chunks;
-    }
+    private Long2ObjectMap<MagmaChunk> chunks;
 
     /**
      * Gets the Magma chunk at the specified block coordinates.
@@ -55,7 +39,7 @@ public class MagmaRegion {
      * @return the Magma chunk, or {@code null} if not populated
      */
     public MagmaChunk getMagmaChunkAt(int x, int z) {
-        return this.chunks.get(ChunkUtils.getChunkIndex(x, z));
+        return this.chunks.get(MagmaUtils.getMagmaChunkIndex(x, z, this.xSize));
     }
 
     public static MagmaRegion read(MagmaInputStream mis) throws IOException {
@@ -77,24 +61,24 @@ public class MagmaRegion {
         //Chunks
         byte[] chunksData = dataMis.readByteArray();
 
-        Int2ObjectMap<MagmaChunk> chunks = new Int2ObjectOpenHashMap<>(xSize * zSize);
-        MagmaInputStream chunksMis = new MagmaInputStream(chunksData);
+        Long2ObjectMap<MagmaChunk> chunks = new Long2ObjectOpenHashMap<>(xSize * zSize);
+        try(MagmaInputStream chunksMis = new MagmaInputStream(chunksData)) {
+            int current = 0;
+            for(var index = 0; index < populatedChunks.length(); index++) {
+                if(!populatedChunks.get(index)) {
+                    // Non-populated chunk
+                    continue;
+                }
 
-        int current = 0;
-        for(var index = 0; index < populatedChunks.length(); index++) {
-            if(!populatedChunks.get(index)) {
-                // Non-populated chunk
-                continue;
+                try {
+                    MagmaChunk chunk = MagmaChunk.read(materialPalette, biomePalette, chunksMis);
+                    chunks.put(current, chunk);
+                } catch(IOException e) {
+                    e.printStackTrace();
+                }
+
+                current++;
             }
-
-            try {
-                MagmaChunk chunk = MagmaChunk.read(materialPalette, biomePalette, chunksMis);
-                chunks.put(current, chunk);
-            } catch(IOException e) {
-                e.printStackTrace();
-            }
-
-            current++;
         }
 
         LOGGER.debug("Finished reading region!");

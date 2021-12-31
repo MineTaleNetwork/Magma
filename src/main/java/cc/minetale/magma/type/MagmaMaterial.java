@@ -1,10 +1,8 @@
 package cc.minetale.magma.type;
 
-import cc.minetale.magma.MagmaWriter;
 import cc.minetale.magma.palette.StatePalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -15,9 +13,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-@Getter @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter @RequiredArgsConstructor
 public class MagmaMaterial {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MagmaWriter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MagmaMaterial.class);
 
     private final int index;
 

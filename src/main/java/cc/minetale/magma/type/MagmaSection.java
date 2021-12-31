@@ -1,13 +1,18 @@
 package cc.minetale.magma.type;
 
+import cc.minetale.magma.MagmaUtils;
+import cc.minetale.magma.palette.BiomePalette;
 import cc.minetale.magma.palette.MaterialPalette;
 import cc.minetale.magma.stream.MagmaInputStream;
 import cc.minetale.magma.stream.MagmaOutputStream;
+import it.unimi.dsi.fastutil.bytes.Byte2ObjectMap;
+import it.unimi.dsi.fastutil.bytes.Byte2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import lombok.AccessLevel;
+import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
+import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Section;
 import net.minestom.server.instance.block.Block;
@@ -17,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-@Getter @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter @AllArgsConstructor
 public class MagmaSection {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MagmaSection.class);
@@ -25,10 +30,8 @@ public class MagmaSection {
     private byte[] skyLight;
     private byte[] blockLight;
 
-    private int bitsPerEntry;
-    private int bitsIncrement;
-
-    private Int2ObjectMap<MagmaBlock> blocks;
+    private Short2ObjectMap<MagmaBlock> blocks;
+    private Byte2ObjectMap<MagmaBiome> biomes;
 
     public void addMaterialsToPalette(Int2ObjectMap<MagmaMaterial> materialPalette) {
         for(MagmaBlock block : this.blocks.values()) {
@@ -46,30 +49,32 @@ public class MagmaSection {
         }
     }
 
-    public static MagmaSection fromSection(MaterialPalette materialPalette, Section section) {
+    /**
+     * @return A populated section or null if section blockPalette's size is 0 (there aren't any blocks other than air)
+     */
+    public static MagmaSection fromSection(MaterialPalette materialPalette, BiomePalette biomePalette, Section section) {
         byte[] skyLight = section.getSkyLight();
         byte[] blockLight = section.getBlockLight();
 
-        //Palette information
-        Palette palette = section.getPalette();
+        Palette secBlockPalette = section.blockPalette();
+        Palette secBiomePalette = section.biomePalette();
 
-        int bitsPerEntry = palette.getBitsPerEntry();
-        int bitsIncrement = 2; //As there is no way to retrieve this from the section, I decided to use a value that is always used either way.
+        Short2ObjectMap<MagmaBlock> blocks = new Short2ObjectOpenHashMap<>();
+        Byte2ObjectMap<MagmaBiome> biomes = new Byte2ObjectOpenHashMap<>();
 
-        Int2ObjectMap<MagmaBlock> blocks = new Int2ObjectOpenHashMap<>();
+        if(secBlockPalette.size() == 0)
+            return null;
 
-        if(palette.getBlockCount() == 0)
-            return new MagmaSection(skyLight, blockLight, bitsPerEntry, bitsIncrement, blocks);
-
-        for(int x = 0; x < Chunk.CHUNK_SECTION_SIZE; x++) {
+        //Block Palette
+        for(int x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
             for(int y = 0; y < Chunk.CHUNK_SECTION_SIZE; y++) {
-                for(int z = 0; z < Chunk.CHUNK_SECTION_SIZE; z++) {
-                    short stateId = palette.getBlockAt(x, y, z);
-                    if(stateId <= 0) { continue; }
+                for(int z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
+                    short stateId = (short) secBlockPalette.get(x, y, z);
+                    if(stateId < 0) { continue; }
 
                     Block block = Block.fromStateId(stateId);
 
-                    int sectionIndex = Palette.getSectionIndex(x, y, z);
+                    short sectionIndex = (short) MagmaUtils.getSectionIndex(secBlockPalette.dimension(), x, y, z);
                     if(blocks.containsKey(sectionIndex)) { continue; }
 
                     if(block == null) {
@@ -86,39 +91,93 @@ public class MagmaSection {
             }
         }
 
-        return new MagmaSection(skyLight, blockLight, bitsPerEntry, bitsIncrement, blocks);
+        //Biome Palette
+        final var dimension = secBiomePalette.dimension();
+        for(int x = 0; x < Chunk.CHUNK_SIZE_X; x += dimension) {
+            for(int y = 0; y < Chunk.CHUNK_SECTION_SIZE; y += dimension) {
+                for(int z = 0; z <  Chunk.CHUNK_SIZE_Z; z += dimension) {
+                    int id = secBiomePalette.get(x, y, z);
+                    var biome = MinecraftServer.getBiomeManager().getById(id);
+                    MagmaBiome magmaBiome = biomePalette.findInPaletteOrAdd(biome);
+                    biomes.put((byte) MagmaUtils.getSectionIndex(secBiomePalette.dimension(), x, y, z), magmaBiome);
+                }
+            }
+        }
+
+        return new MagmaSection(skyLight, blockLight, blocks, biomes);
     }
 
-    public static MagmaSection read(MaterialPalette materialPalette, MagmaInputStream mis) throws IOException {
+    public static MagmaSection read(MaterialPalette materialPalette, BiomePalette biomePalette, MagmaInputStream mis) throws IOException {
         byte[] skyLight = mis.readByteArray();
         byte[] blockLight = mis.readByteArray();
 
-        int bitsPerEntry = mis.readInt();
-        int bitsIncrement = mis.readInt();
+        //Blocks
+        var dimension = 16; //Dimension used by Palette#blocks()
+        var count = dimension * dimension * dimension;
 
-        int blockCount = mis.readShort();
+        var step = Chunk.CHUNK_SECTION_SIZE / dimension;
 
-        Int2ObjectMap<MagmaBlock> blocks = new Int2ObjectOpenHashMap<>(blockCount);
-
-        for(var i = 0; i < blockCount; i++) {
-            MagmaBlock block = MagmaBlock.read(materialPalette, mis);
-            blocks.put(block.getSectionIndex(), block);
+        Short2ObjectMap<MagmaBlock> blocks = new Short2ObjectOpenHashMap<>(count);
+        for(int x = 0; x < Chunk.CHUNK_SIZE_X; x += step) {
+            for(int y = 0; y < Chunk.CHUNK_SECTION_SIZE; y += step) {
+                for(int z = 0; z < Chunk.CHUNK_SIZE_Z; z += step) {
+                    MagmaBlock block = MagmaBlock.read(materialPalette, mis);
+                    blocks.put(block.getSectionIndex(), block);
+                }
+            }
         }
 
-        return new MagmaSection(skyLight, blockLight, bitsPerEntry, bitsIncrement, blocks);
+        //Biomes
+        dimension = 4; //Dimension used by Palette#biomes()
+        count = dimension * dimension * dimension;
+
+        step = Chunk.CHUNK_SECTION_SIZE / dimension;
+
+        Byte2ObjectMap<MagmaBiome> biomes = new Byte2ObjectOpenHashMap<>(count);
+        for(int x = 0; x < Chunk.CHUNK_SIZE_X; x += step) {
+            for(int y = 0; y < Chunk.CHUNK_SECTION_SIZE; y += step) {
+                for(int z = 0; z < Chunk.CHUNK_SIZE_Z; z += step) {
+                    var biomeIndex = mis.readShort();
+                    MagmaBiome biome = biomePalette.getBiomeAt(biomeIndex);
+                    biomes.put((byte) MagmaUtils.getSectionIndex(dimension, x, y, z), biome);
+                }
+            }
+        }
+
+        return new MagmaSection(skyLight, blockLight, blocks, biomes);
     }
 
     public void write(MagmaOutputStream mos) throws IOException {
         mos.writeByteArray(this.skyLight);
         mos.writeByteArray(this.blockLight);
 
-        mos.writeInt(this.bitsPerEntry);
-        mos.writeInt(this.bitsIncrement);
+        //Blocks
+        var dimension = 16; //Dimension used by Palette#blocks()
+        var step = Chunk.CHUNK_SECTION_SIZE / dimension;
 
-        mos.writeShort(this.blocks.size());
+        for(int x = 0; x < Chunk.CHUNK_SIZE_X; x += step) {
+            for(int y = 0; y < Chunk.CHUNK_SECTION_SIZE; y += step) {
+                for(int z = 0; z < Chunk.CHUNK_SIZE_Z; z += step) { //Multiple of 1
+                    var sectionIndex = (short) MagmaUtils.getSectionIndex(dimension, x, y, z);
+                    var block = this.blocks.get(sectionIndex);
+                    block.write(mos);
+                }
+            }
+        }
 
-        for(MagmaBlock block : this.blocks.values()) {
-            block.write(mos);
+        //Biomes
+        dimension = 4; //Dimension used by Palette#biomes()
+        step = Chunk.CHUNK_SECTION_SIZE / dimension;
+
+        for(int x = 0; x < Chunk.CHUNK_SIZE_X; x += step) {
+            for(int y = 0; y < Chunk.CHUNK_SECTION_SIZE; y += step) {
+                for(int z = 0; z < Chunk.CHUNK_SIZE_Z; z += step) { //Multiple of 4
+                    var sectionIndex = (byte) MagmaUtils.getSectionIndex(dimension, x, y, z);
+                    var biome = this.biomes.containsKey(sectionIndex) ? this.biomes.get(sectionIndex) : null;
+                    var biomeIndex = biome != null ? biome.getIndex() : 0;
+                    mos.writeShort(biomeIndex);
+                }
+            }
         }
     }
 
