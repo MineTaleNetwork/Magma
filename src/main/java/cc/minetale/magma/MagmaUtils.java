@@ -8,7 +8,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.coordinate.Pos;
 import net.minestom.server.coordinate.Vec;
 import net.minestom.server.instance.Chunk;
 import net.minestom.server.instance.Instance;
@@ -38,7 +37,7 @@ public final class MagmaUtils {
         return MagmaUtils.DEFAULT_DIRECTORY.resolve(fileName + "." + MagmaUtils.FORMAT_NAME);
     }
 
-    public static CompletableFuture<MagmaRegion> load(Instance instance, Pos from, Pos to) {
+    public static CompletableFuture<MagmaRegion> load(Instance instance, Vec from, Vec to) {
         final var minY = instance.getDimensionType().getMinY();
         final var maxY = instance.getDimensionType().getHeight();
 
@@ -47,8 +46,8 @@ public final class MagmaUtils {
         final var minSection = minY / sectionSize;
         final var maxSection = (minY + maxY) / sectionSize;
 
-        Pos fromChunk = from.sub(from.x() % 16, from.y(), from.z() % 16).div(16);
-        Pos toChunk = to.sub(to.x() % 16, to.y(), to.z() % 16).div(16);
+        Vec fromChunk = from.sub(from.x() % 16, from.y(), from.z() % 16).div(16);
+        Vec toChunk = to.sub(to.x() % 16, to.y(), to.z() % 16).div(16);
 
         int xSize = Math.abs(toChunk.blockX() - fromChunk.blockX());
         int zSize = Math.abs(toChunk.blockZ() - fromChunk.blockZ());
