@@ -64,7 +64,7 @@ public final class MagmaUtils {
         BiomePalette biomePalette = new BiomePalette();
 
         Long2ObjectMap<MagmaChunk> loadedChunks = Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
-        AtomicInteger totalFinished = new AtomicInteger(0);
+        AtomicInteger totalChunksProcessed = new AtomicInteger(0);
 
         List<Task.Builder> tasks = Collections.synchronizedList(new ArrayList<>(totalChunks / BATCH_SIZE));
 
@@ -82,35 +82,36 @@ public final class MagmaUtils {
                     final var unload = !ChunkUtils.isLoaded(instance, chunkPos); //Don't unload chunks that were already loaded
 
                     instance.loadOptionalChunk(chunkPos).thenAccept(chunk -> {
+                        //How many chunks will be finished in this batch after this one gets processed
                         int finished = finishedInBatch.incrementAndGet();
 
                         if(chunk == null || !chunk.isLoaded()) { return; }
 
                         boolean isChunkEmpty = true;
-                        for(int y = minSection; y < maxSection; y++) {
+                        for(int y = 0; y < maxSection; y++) {
                             var section = chunk.getSection(y);
-                            if(section.blockPalette().size() >= 0) {
+                            if(section.blockPalette().size() > 0) {
                                 isChunkEmpty = false;
                                 break;
                             }
                         }
 
-                        if(isChunkEmpty) { return; }
+                        if(isChunkEmpty) {
+                            totalChunksProcessed.getAndIncrement();
+                            scheduleNextBatch(tasks, finished, chunksInBatch);
+                            return;
+                        }
 
                         populatedChunks.set(chunkIndex);
                         loadedChunks.put(chunkIndex, MagmaChunk.fromChunk(materialPalette, biomePalette, chunk));
 
-                        if(totalFinished.incrementAndGet() >= totalBatches)
+                        if(totalChunksProcessed.incrementAndGet() >= totalChunks)
                             future.complete(new MagmaRegion(xSize, zSize, populatedChunks, materialPalette, biomePalette, loadedChunks));
 
                         if(unload)
                             instance.unloadChunk(chunk);
 
-                        if(!tasks.isEmpty() && finished >= chunksInBatch) {
-                            var index = tasks.size() - 1;
-                            tasks.remove(index);
-                            tasks.get(index - 1).schedule();
-                        }
+                        scheduleNextBatch(tasks, finished, chunksInBatch);
                     });
                 }
             }).delay(500, ChronoUnit.MILLIS);
@@ -121,6 +122,14 @@ public final class MagmaUtils {
         tasks.get(totalBatches - 1).schedule();
 
         return future;
+    }
+
+    private static void scheduleNextBatch(List<Task.Builder> tasks, int finished, int chunksInBatch) {
+        if(!tasks.isEmpty() && finished >= chunksInBatch) {
+            var index = tasks.size() - 1;
+            tasks.remove(index);
+            tasks.get(index - 1).schedule();
+        }
     }
 
     public static int getMagmaChunkIndex(int x, int z, int xSize) {

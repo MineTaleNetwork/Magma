@@ -8,7 +8,6 @@ import cc.minetale.magma.stream.MagmaOutputStream;
 import com.github.luben.zstd.Zstd;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.BitSet;
 
-@Getter @AllArgsConstructor
+@Getter
 public class MagmaRegion {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MagmaRegion.class);
@@ -30,6 +29,15 @@ public class MagmaRegion {
     private BiomePalette biomePalette;
 
     private Long2ObjectMap<MagmaChunk> chunks;
+
+    public MagmaRegion(int xSize, int zSize, BitSet populatedChunks, MaterialPalette materialPalette, BiomePalette biomePalette, Long2ObjectMap<MagmaChunk> chunks) {
+        this.xSize = xSize;
+        this.zSize = zSize;
+        this.populatedChunks = populatedChunks;
+        this.materialPalette = materialPalette;
+        this.biomePalette = biomePalette;
+        this.chunks = chunks;
+    }
 
     /**
      * Gets the Magma chunk at the specified block coordinates.

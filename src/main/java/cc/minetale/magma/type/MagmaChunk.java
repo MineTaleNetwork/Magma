@@ -27,12 +27,12 @@ public class MagmaChunk {
     public static MagmaChunk fromChunk(MaterialPalette materialPalette, BiomePalette biomePalette, Chunk chunk) {
         BitSet populatedSections = new BitSet(16);
 
-        Byte2ObjectMap<MagmaSection> magmaSections = new Byte2ObjectOpenHashMap<>(16);
-
-        final var instance = chunk.getInstance();
-
         var sections = chunk.getSections();
-        for(byte i = 0; i < sections.size(); i++) {
+        var sectionsCount = sections.size();
+
+        Byte2ObjectMap<MagmaSection> magmaSections = new Byte2ObjectOpenHashMap<>(sectionsCount);
+
+        for(byte i = 0; i < sectionsCount; i++) {
             var section = sections.get(i);
 
             var magmaSection = MagmaSection.fromSection(materialPalette, biomePalette, section);

@@ -87,22 +87,31 @@ public class MagmaLoader implements IChunkLoader {
     @Override
     public @NotNull CompletableFuture<@Nullable Chunk> loadChunk(@NotNull Instance instance, int chunkX, int chunkZ) {
         if (this.region == null) {
-            LOGGER.error("Tried loading a chunk when the region hasn't loaded yet.");
+            LOGGER.debug("Tried loading a chunk when the region hasn't loaded yet.");
             return CompletableFuture.completedFuture(null);
         }
 
-        if((chunkX < 0 || chunkX > this.region.getXSize()) || (chunkZ < 0 || chunkZ > this.region.getZSize()))
+        var xSize = this.region.getXSize();
+        var zSize = this.region.getZSize();
+
+        if((chunkX < 0 || chunkX > xSize - 1) || (chunkZ < 0 || chunkZ > zSize - 1))
             return CompletableFuture.completedFuture(null);
 
-        var chunkIndex = MagmaUtils.getMagmaChunkIndex(chunkX, chunkZ, this.region.getXSize());
+        var chunkIndex = MagmaUtils.getMagmaChunkIndex(chunkX, chunkZ, xSize);
+
+        var populatedChunks = this.region.getPopulatedChunks();
+        if(!populatedChunks.get(chunkIndex)) {
+            LOGGER.debug("Skipping {} {} because it's not populated", chunkX, chunkZ);
+            return CompletableFuture.completedFuture(null);
+        }
 
         var chunks = this.region.getChunks();
         var magmaChunk = chunks.get(chunkIndex);
 
-        LOGGER.info("Attempt loading at {} {}", chunkX, chunkZ);
+        LOGGER.debug("Attempt loading at {} {}", chunkX, chunkZ);
 
         if(magmaChunk == null) {
-            LOGGER.error("Failed to retrieve chunk {}, {} at index {}", chunkX, chunkZ, chunkIndex);
+            LOGGER.debug("Failed to retrieve chunk {}, {} at index {}", chunkX, chunkZ, chunkIndex);
             return CompletableFuture.completedFuture(null);
         }
 
