@@ -62,7 +62,7 @@ public class MagmaSection {
         Short2ObjectMap<MagmaBlock> blocks = new Short2ObjectOpenHashMap<>();
         Byte2ObjectMap<MagmaBiome> biomes = new Byte2ObjectOpenHashMap<>();
 
-        if(secBlockPalette.size() == 0)
+        if(secBlockPalette.count() == 0)
             return null;
 
         //Block Palette

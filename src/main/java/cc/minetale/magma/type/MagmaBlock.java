@@ -6,10 +6,13 @@ import cc.minetale.magma.stream.MagmaOutputStream;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.minestom.server.instance.block.Block;
-import net.minestom.server.tag.Tag;
 import org.jetbrains.annotations.Nullable;
+import org.jglrxavpok.hephaistos.nbt.NBTCompound;
+import org.jglrxavpok.hephaistos.nbt.NBTException;
+import org.jglrxavpok.hephaistos.parser.SNBTParser;
 
 import java.io.IOException;
+import java.io.StringReader;
 
 @Getter @AllArgsConstructor()
 public class MagmaBlock {
@@ -27,7 +30,12 @@ public class MagmaBlock {
         this.material = material;
 
         this.stateId = block.stateId();
-        this.snbt = block.getTag(Tag.SNBT);
+
+        if(block.hasNbt()) {
+            this.snbt = block.nbt().toSNBT();
+        } else {
+            this.snbt = null;
+        }
     }
 
     /**
@@ -36,8 +44,13 @@ public class MagmaBlock {
     public Block getBlock() {
         Block block = Block.fromStateId(this.stateId);
 
-        if(this.snbt != null && !this.snbt.isEmpty())
-            block.withTag(Tag.SNBT, this.snbt);
+        if(this.snbt != null && !this.snbt.isEmpty()) {
+            try {
+                block.withNbt((NBTCompound) new SNBTParser(new StringReader(this.snbt)).parse());
+            } catch(NBTException e) {
+                e.printStackTrace();
+            }
+        }
 
         return block;
     }

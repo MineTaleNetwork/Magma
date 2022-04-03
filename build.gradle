@@ -30,10 +30,11 @@ dependencies {
     annotationProcessor group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
 
     implementation group: 'com.github.luben',    name: 'zstd-jni', version: '1.5.0-4'
-    compileOnly    group: 'com.github.Minestom', name: 'Minestom', version: '1.18-SNAPSHOT'
+//    compileOnly    group: 'com.github.Minestom', name: 'Minestom', version: '1.18-SNAPSHOT'
+    implementation group: 'net.minestom.server', name: 'Minestom', version: '1.0'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
-    testImplementation "org.mockito:mockito-core:3.+"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.+'
+    testImplementation 'org.mockito:mockito-core:4.+'
 }
 
 configurations {

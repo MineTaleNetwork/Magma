@@ -90,7 +90,7 @@ public final class MagmaUtils {
                         boolean isChunkEmpty = true;
                         for(int y = 0; y < maxSection; y++) {
                             var section = chunk.getSection(y);
-                            if(section.blockPalette().size() > 0) {
+                            if(section.blockPalette().count() > 0) {
                                 isChunkEmpty = false;
                                 break;
                             }
